@@ -1,0 +1,48 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libx11-dev \
+          libxext-dev \
+          libxft-dev \
+          libfontconfig-dev \
+          libfreetype-dev \
+          x11-utils \
+          cppcheck \
+          make \
+          gcc
+      
+    - name: Build
+      run: make
+    
+    - name: Check binary
+      run: |
+        file ./bin/snote
+        ldd ./bin/snote
+    
+    - name: Lint with cppcheck
+      run: make lint || true
+    
+    - name: Test (help)
+      run: ./bin/snote -h
+    
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: snote
+        path: ./bin/snote
