@@ -9,10 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -20,27 +20,28 @@ jobs:
           libx11-dev \
           libxext-dev \
           libxft-dev \
+          libxrender-dev \
           libfontconfig-dev \
           libfreetype-dev \
           x11-utils \
           cppcheck \
           make \
           gcc
-      
+
     - name: Build
       run: make
-    
+
     - name: Check binary
       run: |
         file ./bin/snote
         ldd ./bin/snote
-    
+
     - name: Lint with cppcheck
       run: make lint || true
-    
+
     - name: Test (help)
       run: ./bin/snote -h
-    
+
     - name: Upload binary
       uses: actions/upload-artifact@v4
       with:

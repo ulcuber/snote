@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-O3 -Wall $(shell pkg-config --cflags xft)
-LDFLAGS=-lX11 -lXext -lXft -lfontconfig -lfreetype
+LDFLAGS=-lX11 -lXext -lXft -lXrender -lfontconfig -lfreetype
 SOURCES=$(wildcard src/*.c)
 OBJS=$(patsubst src/%.c,obj/%.o,$(SOURCES))
 TARGET=bin/snote
@@ -8,7 +8,7 @@ TARGET=bin/snote
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 obj/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
@@ -17,6 +17,10 @@ clean:
 	rm -rf $(OBJS)
 clean-all:
 	rm -rf $(OBJS) $(TARGET)
+
+debug: CFLAGS += -g3 -O0 -no-pie -fno-omit-frame-pointer
+debug: LDFLAGS += -no-pie
+debug: $(TARGET)
 
 apt:
 	sudo apt-get install libx11-dev
@@ -53,4 +57,4 @@ pvs-html:
 	rm -rf pvs-studio-html
 	plog-converter -t fullhtml -o pvs-studio-html PVS-Studio.log
 
-.PHONY: all clean clean-all apt pacman install uninstall report lint pvs pvs-init pvs-analyze pvs-html
+.PHONY: all clean clean-all debug apt pacman install uninstall report lint pvs pvs-init pvs-analyze pvs-html
