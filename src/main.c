@@ -172,20 +172,21 @@ int get_font_size_from_xresources(XrmDatabase db) {
 void measure_text(SNote *note) {
     if (!note || !note->text || strlen(note->text) == 0) return;
 
-    int max_width = 0;
-    int total_height = 0;
     char *text_copy = strdup(note->text);
     if (!text_copy) return;
 
-    char *line = strtok(text_copy, "\n");
+    char *rest = text_copy;
+    char *line = strsep(&rest, "\n");
+
     XGlyphInfo extents;
+    int max_width = 0, total_height = 0;
 
     while (line) {
         XftTextExtentsUtf8(note->dpy, note->xft_font,
                            (XftChar8*)line, strlen(line), &extents);
         if (extents.xOff > max_width) max_width = extents.xOff;
         total_height += note->xft_font->height + LINE_SPACING;
-        line = strtok(NULL, "\n");
+        line = strsep(&rest, "\n");
     }
     free(text_copy);
 
@@ -461,15 +462,16 @@ void draw_note(SNote *note) {
     char *text_copy = strdup(note->text);
     if (!text_copy) return;
 
-    char *line = strtok(text_copy, "\n");
+    char *rest = text_copy;
+    char *line = strsep(&rest, "\n");
     int y = PADDING + note->xft_font->ascent;
 
     while (line && y < note->height - PADDING) {
         XftDrawStringUtf8(note->xft_draw, &note->xft_fg, note->xft_font,
                           PADDING, y, (XftChar8*)line, strlen(line));
-        verbose_printf("🎨 Drew text: '%s' at y=%d\n", line, y);
-        y += note->xft_font->height + LINE_SPACING;
-        line = strtok(NULL, "\n");
+        verbose_printf("🎨 Drew text: '%s' at y=%d, +%d\n", line, y, note->xft_font->height);
+        y +=  note->xft_font->height + LINE_SPACING;
+        line = strsep(&rest, "\n");
     }
     free(text_copy);
 }

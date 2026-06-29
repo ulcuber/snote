@@ -85,8 +85,12 @@ Add these to your `~/.Xresources`:
 You can add these to your `~/.config/i3/config`:
 
 ```conf
-	bindsym n exec --no-startup-id ~/.config/rofi/snote, mode "default"
-	bindsym Shift+n exec --no-startup-id ~/.config/rofi/snote -b, mode "default"
+bindsym $mod+o mode "open"
+mode "open" {
+    bindsym n exec --no-startup-id ~/.config/rofi/snote, mode "default"
+    Shift+n exec --no-startup-id ~/.config/rofi/snote -b, mode "default"
+    bindsym Ctrl+v exec snote "$(xclip -selection clipboard -o)", mode "default"
+}
 ```
 
 ### Wrapper Script with Rofi
