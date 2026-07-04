@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=gnu23 -O3 -Wall $(shell pkg-config --cflags xft)
+CFLAGS=-std=gnu2x -O3 -Wall $(shell pkg-config --cflags xft)
 LDFLAGS=-lX11 -lXext -lXft -lXrender -lfontconfig -lfreetype
 SOURCES=$(wildcard src/*.c)
 OBJS=$(patsubst src/%.c,obj/%.o,$(SOURCES))
