@@ -16,18 +16,20 @@
 #define BORDER 3
 
 struct {
-    int sticky;
-    int above;
-    int override_redirect;
-    int dialog;
-    int draw_box;
-    int verbose;
-    int focusable;
+    bool sticky;
+    bool above;
+    bool override_redirect;
+    bool dialog;
+    bool draw_box;
+    bool focusable;
+#ifndef NO_VERBOSE
+    bool verbose;
+#endif
 } flags;
 
 struct {
-    int font_size;
-    int have_alpha;
+    unsigned short font_size;
+    bool have_alpha;
     int depth;
 } config;
 
@@ -35,20 +37,21 @@ typedef struct {
     Display *dpy;
     Window win;
     char *text;
-    int x, y;
-    int width, height;
-    int text_width, text_height;
+    unsigned short x, y;
+    unsigned short width, height;
+    unsigned short text_width, text_height;
     XftFont *xft_font;
     XftColor xft_fg, xft_bg;
     XftDraw *xft_draw;
     unsigned long fg_pixel, bg_pixel, border_pixel;
-    int dragging;
-    int drag_x, drag_y;
+    bool dragging;
+    unsigned short drag_x, drag_y;
     Atom wm_delete_window;
     Visual *visual;
     Colormap cmap;
 } SNote;
 
+#ifndef NO_VERBOSE
 void verbose_printf(const char *format, ...) {
     if (!flags.verbose) return;
     va_list args;
@@ -56,11 +59,14 @@ void verbose_printf(const char *format, ...) {
     vfprintf(stderr, format, args);
     va_end(args);
 }
+#endif
 
 XrmDatabase init_xresources(Display *dpy) {
     char *resource_string = XResourceManagerString(dpy);
     if (resource_string) {
+#ifndef NO_VERBOSE
         verbose_printf("📚 Loading Xresources from server\n");
+#endif
         return XrmGetStringDatabase(resource_string);
     }
 
@@ -68,7 +74,9 @@ XrmDatabase init_xresources(Display *dpy) {
     if (home) {
         char path[512];
         snprintf(path, sizeof(path), "%s/.Xresources", home);
+#ifndef NO_VERBOSE
         verbose_printf("📚 Loading Xresources from %s\n", path);
+#endif
 
         FILE *fp = fopen(path, "r");
         if (fp) {
@@ -77,7 +85,9 @@ XrmDatabase init_xresources(Display *dpy) {
         }
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("⚠️ No Xresources found\n");
+#endif
     return NULL;
 }
 
@@ -85,38 +95,50 @@ unsigned long get_xcolor(Display *dpy, XrmDatabase db, const char *name, unsigne
     XrmValue value;
     char *type;
 
+#ifndef NO_VERBOSE
     verbose_printf("🔍 Looking for color: %s\n", name);
+#endif
 
     if (db) {
         char wildcard[256];
         snprintf(wildcard, sizeof(wildcard), "*.%s", name);
 
         if (XrmGetResource(db, wildcard, wildcard, &type, &value)) {
+#ifndef NO_VERBOSE
             verbose_printf("   ✅ Found: %s = %s\n", wildcard, value.addr);
+#endif
 
             XColor color;
             Colormap cmap = DefaultColormap(dpy, DefaultScreen(dpy));
             if (XParseColor(dpy, cmap, value.addr, &color)) {
                 XAllocColor(dpy, cmap, &color);
+#ifndef NO_VERBOSE
                 verbose_printf("   ✅ Parsed color: pixel=%lu\n", color.pixel);
+#endif
                 return color.pixel;
             }
         }
 
         if (XrmGetResource(db, name, name, &type, &value)) {
+#ifndef NO_VERBOSE
             verbose_printf("   ✅ Found: %s = %s\n", name, value.addr);
+#endif
 
             XColor color;
             Colormap cmap = DefaultColormap(dpy, DefaultScreen(dpy));
             if (XParseColor(dpy, cmap, value.addr, &color)) {
                 XAllocColor(dpy, cmap, &color);
+#ifndef NO_VERBOSE
                 verbose_printf("   ✅ Parsed color: pixel=%lu\n", color.pixel);
+#endif
                 return color.pixel;
             }
         }
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("   ⚠️ Using fallback: %lu\n", fallback);
+#endif
     return fallback;
 }
 
@@ -132,18 +154,24 @@ int get_font_face(XrmDatabase db, char *buffer, size_t bufsize) {
         if (XrmGetResource(db, "*.faceName", "*.faceName", &type, &value)) {
             strncpy(buffer, value.addr, bufsize - 1);
             buffer[bufsize - 1] = '\0';
+#ifndef NO_VERBOSE
             verbose_printf("📝 Font face from Xresources: %s\n", buffer);
+#endif
             return 1;
         }
         if (XrmGetResource(db, "faceName", "faceName", &type, &value)) {
             strncpy(buffer, value.addr, bufsize - 1);
             buffer[bufsize - 1] = '\0';
+#ifndef NO_VERBOSE
             verbose_printf("📝 Font face from Xresources: %s\n", buffer);
+#endif
             return 1;
         }
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("📝 No font face in Xresources\n");
+#endif
     return 0;
 }
 
@@ -154,17 +182,23 @@ int get_font_size_from_xresources(XrmDatabase db) {
     if (db) {
         if (XrmGetResource(db, "*.fontSize", "*.fontSize", &type, &value)) {
             int size = atoi(value.addr);
+#ifndef NO_VERBOSE
             verbose_printf("📐 Font size from Xresources: %d\n", size);
+#endif
             return size;
         }
         if (XrmGetResource(db, "fontSize", "fontSize", &type, &value)) {
             int size = atoi(value.addr);
+#ifndef NO_VERBOSE
             verbose_printf("📐 Font size from Xresources: %d\n", size);
+#endif
             return size;
         }
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("📐 Using default font size: 20\n");
+#endif
     return 20;
 }
 
@@ -204,11 +238,15 @@ void apply_window_states(Display *dpy, Window win) {
 
     if (flags.sticky) {
         states[count++] = sticky_atom;
+#ifndef NO_VERBOSE
         verbose_printf("📌 Adding STICKY state\n");
+#endif
     }
     if (flags.above) {
         states[count++] = above_atom;
+#ifndef NO_VERBOSE
         verbose_printf("📌 Adding ABOVE state\n");
+#endif
     }
 
     if (count > 0) {
@@ -222,7 +260,9 @@ void apply_window_states(Display *dpy, Window win) {
 void apply_window_type(Display *dpy, Window win) {
     Atom window_type = XInternAtom(dpy,
                                    flags.dialog ? "_NET_WM_WINDOW_TYPE_DIALOG" : "_NET_WM_WINDOW_TYPE_TOOL", False);
+#ifndef NO_VERBOSE
     verbose_printf("📌 Setting window type: %s\n", flags.dialog ? "DIALOG" : "TOOL");
+#endif
     XChangeProperty(dpy, win, XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False),
                     XA_ATOM, 32, PropModeReplace, (unsigned char*)&window_type, 1);
 }
@@ -258,13 +298,17 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
 
     // for ARGB transparency
     if (XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo)) {
+#ifndef NO_VERBOSE
         verbose_printf("✅ Found 32-bit TrueColor visual (depth=%d, class=%d)\n", vinfo.depth, vinfo.class);
+#endif
         note->visual = vinfo.visual;
         note->cmap = XCreateColormap(dpy, root, vinfo.visual, AllocNone);
         config.depth = vinfo.depth;
         config.have_alpha = 1;
     } else {
+#ifndef NO_VERBOSE
         verbose_printf("⚠️ No 32-bit visual found, using default\n");
+#endif
         note->visual = DefaultVisual(dpy, screen);
         note->cmap = DefaultColormap(dpy, screen);
         config.depth = DefaultDepth(dpy, screen);
@@ -275,8 +319,10 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
     note->bg_pixel = get_xcolor(dpy, db, "background", WhitePixel(dpy, screen));
     note->border_pixel = get_xcolor(dpy, db, "color7", BlackPixel(dpy, screen));
 
+#ifndef NO_VERBOSE
     verbose_printf("🎨 Colors: fg=%lu, bg=%lu, border=%lu\n",
                    note->fg_pixel, note->bg_pixel, note->border_pixel);
+#endif
 
     char font_face_buf[256] = {0};
     const char *font_face = NULL;
@@ -292,14 +338,18 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
         snprintf(font_name, sizeof(font_name), "sans:size=%d", config.font_size);
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("🔤 Creating Xft font: %s\n", font_name);
+#endif
     note->xft_font = XftFontOpenName(dpy, screen, font_name);
 
     if (!note->xft_font) {
-        const char *fallbacks[] = {"DejaVu Sans", "Liberation Sans", "Arial", "Helvetica"};
+        static const char *fallbacks[] = {"DejaVu Sans", "Liberation Sans", "Arial", "Helvetica"};
         for (int i = 0; i < 4; i++) {
             snprintf(font_name, sizeof(font_name), "%s:size=%d", fallbacks[i], config.font_size);
+#ifndef NO_VERBOSE
             verbose_printf("🔤 Trying fallback: %s\n", font_name);
+#endif
             note->xft_font = XftFontOpenName(dpy, screen, font_name);
             if (note->xft_font) break;
         }
@@ -312,7 +362,9 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
         return NULL;
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("✅ Loaded font (size %d)\n", config.font_size);
+#endif
 
     measure_text(note);
 
@@ -330,10 +382,14 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
 
     if (config.have_alpha && config.depth == 32) {
         attrs.background_pixel = 0x00000000;
+#ifndef NO_VERBOSE
         verbose_printf("🖼️ Using depth 32 with alpha transparency\n");
+#endif
     } else {
         attrs.background_pixel = flags.draw_box ? note->bg_pixel : BlackPixel(dpy, screen);
+#ifndef NO_VERBOSE
         verbose_printf("🖼️ Using default depth %d (no alpha)\n", config.depth);
+#endif
     }
 
     if (flags.override_redirect) {
@@ -352,7 +408,9 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
         return NULL;
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("✅ Window created successfully (width=%d, height=%d)\n", note->width, note->height);
+#endif
 
     XStoreName(dpy, note->win, "snote");
 
@@ -416,7 +474,9 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
     XMapWindow(dpy, note->win);
     XFlush(dpy);
 
+#ifndef NO_VERBOSE
     verbose_printf("✅ Window mapped\n");
+#endif
 
     return note;
 }
@@ -424,8 +484,17 @@ SNote *create_note(Display *dpy, XrmDatabase db, const char *text, int x, int y)
 void draw_note(SNote *note) {
     if (!note || !note->xft_draw) return;
 
+#ifndef NO_VERBOSE
     verbose_printf("🎨 Drawing note (box=%d, w=%d, h=%d)\n",
                    flags.draw_box, note->width, note->height);
+#endif
+
+    XWindowAttributes attrs;
+    XGetWindowAttributes(note->dpy, note->win, &attrs);
+
+    // prevents artifacts if letters are smaller than minimum window size
+    unsigned int width = attrs.width;
+    unsigned int height = attrs.height;
 
     if (flags.draw_box) {
         GC gc = XCreateGC(note->dpy, note->win, 0, NULL);
@@ -433,14 +502,18 @@ void draw_note(SNote *note) {
             // Draw border
             XSetForeground(note->dpy, gc, note->border_pixel);
             XFillRectangle(note->dpy, note->win, gc, 0, 0,
-                           note->width, note->height);
+                           width, height);
+#ifndef NO_VERBOSE
             verbose_printf("🎨 Drew border with pixel %lu\n", note->border_pixel);
+#endif
 
             // Fill background
             XSetForeground(note->dpy, gc, note->bg_pixel);
             XFillRectangle(note->dpy, note->win, gc, BORDER, BORDER,
-                           note->width - BORDER * 2 - 1, note->height - BORDER * 2 - 1);
+                           width - BORDER * 2 - 1, height - BORDER * 2 - 1);
+#ifndef NO_VERBOSE
             verbose_printf("🎨 Filled background with pixel %lu\n", note->bg_pixel);
+#endif
 
             XFreeGC(note->dpy, gc);
         }
@@ -451,7 +524,7 @@ void draw_note(SNote *note) {
             if (gc) {
                 XSetForeground(note->dpy, gc, 0x00000000);
                 XFillRectangle(note->dpy, note->win, gc, 0, 0,
-                               note->width, note->height);
+                               width, height);
                 XFreeGC(note->dpy, gc);
             }
         }
@@ -469,11 +542,17 @@ void draw_note(SNote *note) {
     while (line && y < note->height - PADDING) {
         XftDrawStringUtf8(note->xft_draw, &note->xft_fg, note->xft_font,
                           PADDING, y, (XftChar8*)line, strlen(line));
+#ifndef NO_VERBOSE
         verbose_printf("🎨 Drew text: '%s' at y=%d, +%d\n", line, y, note->xft_font->height);
+#endif
         y +=  note->xft_font->height + LINE_SPACING;
         line = strsep(&rest, "\n");
     }
     free(text_copy);
+
+#ifndef NO_VERBOSE
+    verbose_printf("Actual window size: %dx%d at (%d,%d)\n", width, height, attrs.x, attrs.y);
+#endif
 }
 
 void move_window(SNote *note, int x, int y) {
@@ -498,7 +577,9 @@ void print_help(const char *prog) {
     printf("  -o               Override Redirect (bypass WM)\n");
     printf("  -b               Draw box border (default: transparent, text only)\n");
     printf("  -d               Dialog window type (default: TOOL)\n");
+#ifndef NO_VERBOSE
     printf("  -v               Enable verbose/debug output\n");
+#endif
     printf("  -h, --help       Show this help\n\n");
     printf("Examples:\n");
     printf("  %s -x 200 -y 300 -s 20 \"Hello\\nWorld\"\n", prog);
@@ -545,7 +626,7 @@ void destroy_note(SNote *note) {
 }
 
 int main(int argc, char *argv[]) {
-    int x = 100, y = 100;
+    unsigned short x = 100, y = 100;
     const char *text = NULL;
 
     for (int i = 1; i < argc; i++) {
@@ -567,8 +648,10 @@ int main(int argc, char *argv[]) {
             flags.dialog = 1;
         } else if (strcmp(argv[i], "-b") == 0) {
             flags.draw_box = 1;
+#ifndef NO_VERBOSE
         } else if (strcmp(argv[i], "-v") == 0) {
             flags.verbose = 1;
+#endif
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             print_help(argv[0]);
             return 0;
@@ -589,6 +672,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+#ifndef NO_VERBOSE
     verbose_printf("📝 Creating note: \"%s\"\n", text);
     verbose_printf("   Position: %d, %d\n", x, y);
     verbose_printf("   Sticky: %s, Above: %s, Focusable: %s, Override: %s, Dialog: %s, Box: %s\n",
@@ -596,6 +680,7 @@ int main(int argc, char *argv[]) {
                    flags.focusable ? "yes" : "no",
                    flags.override_redirect ? "yes" : "no", flags.dialog ? "yes" : "no",
                    flags.draw_box ? "yes" : "no");
+#endif
 
     XrmDatabase db = init_xresources(dpy);
     if (config.font_size == 0) {
@@ -603,6 +688,9 @@ int main(int argc, char *argv[]) {
     }
 
     SNote *note = create_note(dpy, db, text, x, y);
+
+    // ealrly cleanup for resources not used after note inited
+    XrmDestroyDatabase(db);
 
     if (!note) {
         fprintf(stderr, "❌ Failed to create note\n");

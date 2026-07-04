@@ -5,6 +5,10 @@ SOURCES=$(wildcard src/*.c)
 OBJS=$(patsubst src/%.c,obj/%.o,$(SOURCES))
 TARGET=bin/snote
 
+ifdef NO_VERBOSE
+    CFLAGS += -DNO_VERBOSE
+endif
+
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
@@ -21,6 +25,10 @@ clean-all:
 debug: CFLAGS += -g3 -O0 -no-pie -fno-omit-frame-pointer
 debug: LDFLAGS += -no-pie
 debug: $(TARGET)
+
+release: CFLAGS += -flto -fomit-frame-pointer -ffunction-sections -fdata-sections -DNDEBUG -DNO_VERBOSE
+release: LDFLAGS += -s -Wl,--gc-sections
+release: clean all
 
 apt:
 	sudo apt-get install libx11-dev
@@ -57,4 +65,4 @@ pvs-html:
 	rm -rf pvs-studio-html
 	plog-converter -t fullhtml -o pvs-studio-html PVS-Studio.log
 
-.PHONY: all clean clean-all debug apt pacman install uninstall report lint pvs pvs-init pvs-analyze pvs-html
+.PHONY: all clean clean-all debug release apt pacman install uninstall report lint pvs pvs-init pvs-analyze pvs-html
